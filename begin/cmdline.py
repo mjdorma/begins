@@ -161,6 +161,7 @@ def create_parser(func, env_prefix=None, config_file=None, config_section=None,
     if len(collector) > 0:
         subparsers = parser.add_subparsers(title='Available subcommands',
                 dest='_subcommand')
+        subparsers.metavar = 'subcommand' # changes {cmd, cmd, ...} to 'subcommand'
         for subfunc in collector.commands():
             funcsig  = signature(subfunc)
             help = None
