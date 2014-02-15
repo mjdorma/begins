@@ -99,23 +99,30 @@ def populate_parser(parser, defaults, funcsig, short_args, lexical_order):
         if param.kind == param.POSITIONAL_OR_KEYWORD or \
                 param.kind == param.KEYWORD_ONLY or \
                 param.kind == param.POSITIONAL_ONLY:
-            kwargs = {'default': defaults.from_param(param)}
-            if isinstance(param.default, bool):
+            default = defaults.from_param(param)
+            kwargs = {'default': default}
+            if param.annotation is not param.empty:
+                kwargs['help'] = param.annotation
+            if isinstance(default, bool):
+                # Flag type param.
                 if not isinstance(kwargs['default'], bool):
                     kwargs['default'] = utils.tobool(kwargs['default'])
                 if kwargs['default']:
+                    args = ["--no-" + param.name]
                     kwargs['action'] = 'store_false'
+                    kwargs['help'] = 'disable ' + param.name
                 else:
+                    args = ["--" + param.name]
                     kwargs['action'] = 'store_true'
-            else:
+                    kwargs['help'] = 'enable ' + param.name
+            elif default is NODEFAULT:
+                # Positional type param.
                 kwargs['metavar'] = defaults.metavar(param.name)
-            if param.annotation is not param.empty:
-                kwargs['help'] = param.annotation
-            args = []
-            if kwargs['default'] is NODEFAULT:
-                args.append(param.name)
+                args = [param.name]
             else:
-                args.append('--' + param.name)
+                # Keyword type param.
+                kwargs['metavar'] = defaults.metavar(param.name)
+                args = ['--' + param.name]
                 if short_args:
                     args.append('-' + param.name[0])
                 if 'help' not in kwargs:
@@ -209,7 +216,10 @@ def call_function(func, funcsig, opts):
     for param in funcsig.parameters.values():
         if param.kind == param.POSITIONAL_OR_KEYWORD or \
                 param.kind == param.POSITIONAL_ONLY:
-            pargs.append(getoption(opts, param.name))
+            if param.default is True:
+                pargs.append(getoption(opts, "no_" + param.name))
+            else:
+                pargs.append(getoption(opts, param.name))
         elif param.kind == param.VAR_POSITIONAL:
             pargs.extend(getoption(opts, param.name, []))
         elif param.kind == param.KEYWORD_ONLY:
