@@ -99,30 +99,47 @@ def populate_parser(parser, defaults, funcsig, short_args, lexical_order):
         if param.kind == param.POSITIONAL_OR_KEYWORD or \
                 param.kind == param.KEYWORD_ONLY or \
                 param.kind == param.POSITIONAL_ONLY:
-            kwargs = {'default': defaults.from_param(param)}
-            if isinstance(param.default, bool):
-                if not isinstance(kwargs['default'], bool):
-                    kwargs['default'] = utils.tobool(kwargs['default'])
-                if kwargs['default']:
-                    kwargs['action'] = 'store_false'
-                else:
-                    kwargs['action'] = 'store_true'
-            else:
-                kwargs['metavar'] = defaults.metavar(param.name)
+            default = defaults.from_param(param)
+            kwargs = {'default': default}
             if param.annotation is not param.empty:
                 kwargs['help'] = param.annotation
-            args = []
-            if kwargs['default'] is NODEFAULT:
-                args.append(param.name)
+            if isinstance(default, bool):
+                # Flag type param.
+                if not isinstance(kwargs['default'], bool):
+                    kwargs['default'] = utils.tobool(kwargs['default'])
+                
+                if kwargs['default']:
+                    no_help = 'disable %s (default)' % param.name
+                    yes_help = 'enable %s' % param.name
+                else:
+                    no_help = 'disable %s' % param.name
+                    yes_help = 'enable %s (default)' % param.name
+                # Add no argument.
+                args = ["--no-" + param.name]
+                kwargs['action'] = 'store_false'
+                kwargs['help'] = no_help 
+                parser.add_argument(*args, **kwargs)
+                # Add yes argument.
+                args = ["--" + param.name]
+                kwargs['action'] = 'store_true'
+                kwargs['help'] = yes_help 
+                parser.add_argument(*args, **kwargs)
+            elif default is NODEFAULT:
+                # Positional type param.
+                kwargs['metavar'] = defaults.metavar(param.name)
+                args = [param.name]
+                parser.add_argument(*args, **kwargs)
             else:
-                args.append('--' + param.name)
+                # Keyword type param.
+                kwargs['metavar'] = defaults.metavar(param.name)
+                args = ['--' + param.name]
                 if short_args:
                     args.append('-' + param.name[0])
                 if 'help' not in kwargs:
                     kwargs['help'] = '(default: %(default)s)'
                 else:
                     kwargs['help'] += ' (default: %(default)s)'
-            parser.add_argument(*args, **kwargs)
+                parser.add_argument(*args, **kwargs)
         elif param.kind == param.VAR_POSITIONAL:
             kwargs = {'nargs': '*'}
             if param.annotation is not param.empty:
@@ -209,7 +226,10 @@ def call_function(func, funcsig, opts):
     for param in funcsig.parameters.values():
         if param.kind == param.POSITIONAL_OR_KEYWORD or \
                 param.kind == param.POSITIONAL_ONLY:
-            pargs.append(getoption(opts, param.name))
+            if param.default is True:
+                pargs.append(getoption(opts, "no_" + param.name))
+            else:
+                pargs.append(getoption(opts, param.name))
         elif param.kind == param.VAR_POSITIONAL:
             pargs.extend(getoption(opts, param.name, []))
         elif param.kind == param.KEYWORD_ONLY:
