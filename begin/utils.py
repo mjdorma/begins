@@ -23,10 +23,13 @@ def tolist(value=None, sep=',', empty_strings=False):
     removed from the resulting list. This behaviour can be changed by passing
     True as the 'empty_strings' keyword argument.
     """
-    def tolist(value):
-        result = value.split(sep)
-        if not empty_strings:
-            return [r for r in result if len(r) > 0]
+    def tolist(input_value):
+        if value is not input_value:
+            result = input_value.split(sep)
+            if not empty_strings:
+                result = [r for r in result if len(r) > 0]
+        else:
+            result = value
         return result
     if value is None:
         return tolist
